@@ -1,9 +1,7 @@
 name: Build oracle_fdw on Windows
 
 on:
-  workflow_dispatch:   # lets you run manually
-  push:
-    branches: [ main ]
+  workflow_dispatch:   # Run manually from GitHub UI
 
 jobs:
   build:
@@ -11,7 +9,7 @@ jobs:
 
     steps:
     - name: Checkout source
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4   # ✅ latest checkout action
 
     - name: Install PostgreSQL 13
       run: |
@@ -32,7 +30,7 @@ jobs:
         msbuild oracle_fdw.sln /p:Configuration=Release /p:Platform=x64 /p:PGSQL="C:\pgsql13" /p:ORACLE_HOME="C:\oracle\instantclient"
 
     - name: Upload DLL artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v4   # ✅ switched to v4
       with:
         name: oracle_fdw-dll
         path: msvc\x64\Release\oracle_fdw.dll
