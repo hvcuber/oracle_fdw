@@ -11,7 +11,7 @@ jobs:
 
     steps:
     - name: Checkout source
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install PostgreSQL 13
       run: |
@@ -32,7 +32,7 @@ jobs:
         msbuild oracle_fdw.sln /p:Configuration=Release /p:Platform=x64 /p:PGSQL="C:\pgsql13" /p:ORACLE_HOME="C:\oracle\instantclient"
 
     - name: Upload DLL artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: oracle_fdw-dll
         path: msvc\x64\Release\oracle_fdw.dll
