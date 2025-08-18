@@ -1,36 +1,43 @@
-name: Build oracle_fdw on Windows
+name: Build oracle_fdw.dll
 
 on:
-  workflow_dispatch:   # Run manually from GitHub UI
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout source
-      uses: actions/checkout@v4   # ✅ latest checkout action
+      - name: Checkout oracle_fdw
+        uses: actions/checkout@v4
 
-    - name: Install PostgreSQL 13
-      run: |
-        choco install postgresql13 --params '/Password:postgres /Port:5432 /InstallDir:C:\pgsql13'
-        echo "C:\pgsql13\bin" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
+      - name: Install PostgreSQL 13
+        run: |
+          choco install postgresql13 --params '/Password=postgres' -y
+          echo "C:\Program Files\PostgreSQL\13\bin" >> $env:GITHUB_PATH
+          echo "C:\Program Files\PostgreSQL\13\include" >> $env:GITHUB_PATH
+          echo "C:\Program Files\PostgreSQL\13\lib" >> $env:GITHUB_PATH
 
-    - name: Install Oracle Instant Client
-      run: |
-        curl -L https://download.oracle.com/otn_software/nt/instantclient/198000/instantclient-basic-windows.x64-19.8.0.0.0dbru.zip -o instantclient.zip
-        curl -L https://download.oracle.com/otn_software/nt/instantclient/198000/instantclient-sdk-windows.x64-19.8.0.0.0dbru.zip -o sdk.zip
-        Expand-Archive instantclient.zip -DestinationPath C:\oracle
-        Expand-Archive sdk.zip -DestinationPath C:\oracle
-        Rename-Item "C:\oracle\instantclient_19_8" "C:\oracle\instantclient"
+      - name: Install Oracle Instant Client (Basic + SDK)
+        run: |
+          choco install oracle-instantclient -y
+          choco install oracle-instantclient-sdk -y
+          echo "C:\tools\instantclient_19_18\sdk\include" >> $env:GITHUB_PATH
+          echo "C:\tools\instantclient_19_18" >> $env:GITHUB_PATH
 
-    - name: Build oracle_fdw
-      run: |
-        cd msvc
-        msbuild oracle_fdw.sln /p:Configuration=Release /p:Platform=x64 /p:PGSQL="C:\pgsql13" /p:ORACLE_HOME="C:\oracle\instantclient"
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
-    - name: Upload DLL artifact
-      uses: actions/upload-artifact@v4   # ✅ switched to v4
-      with:
-        name: oracle_fdw-dll
-        path: msvc\x64\Release\oracle_fdw.dll
+      - name: Build oracle_fdw
+        run: |
+          msbuild msvc/oracle_fdw.sln `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:PGSQL="C:\Program Files\PostgreSQL\13" `
+            /p:ORACLE_HOME="C:\tools\instantclient_19_18"
+
+      - name: Upload DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: oracle_fdw-dll
+          path: msvc/x64/Release/oracle_fdw.dll
