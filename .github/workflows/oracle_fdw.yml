@@ -8,39 +8,46 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout oracle_fdw
+      - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL 13
+      # Install PostgreSQL development files (headers + libs)
+      - name: Install PostgreSQL
         run: |
-          choco install postgresql13 --params '/Password=postgres' -y
-          echo "C:\Program Files\PostgreSQL\13\bin" >> $env:GITHUB_PATH
+          choco install postgresql14 --params '/Password:postgres' --force --yes
+          echo "PGROOT=C:\\Program Files\\PostgreSQL\\14" >> $env:GITHUB_ENV
+          echo "PATH=C:\\Program Files\\PostgreSQL\\14\\bin;$env:PATH" >> $env:GITHUB_ENV
 
+      # Download Oracle Instant Client Basic
       - name: Download Oracle Instant Client Basic
         run: |
-          curl -L https://download.oracle.com/otn_software/nt/instantclient/1918000/instantclient-basic-windows.x64-19.18.0.0.0dbru.zip -o instantclient.zip
-          mkdir C:\oracle
-          tar -xf instantclient.zip -C C:\oracle
-          ren "C:\oracle\instantclient_19_18" instantclient
+          curl -L https://download.oracle.com/otn_software/nt/instantclient/1916000/instantclient-basic-windows.x64-19.16.0.0.0dbru.zip -o basic.zip
+          7z x basic.zip -oinstantclient
 
+      # Download Oracle Instant Client SDK
       - name: Download Oracle Instant Client SDK
         run: |
-          curl -L https://download.oracle.com/otn_software/nt/instantclient/1918000/instantclient-sdk-windows.x64-19.18.0.0.0dbru.zip -o sdk.zip
-          tar -xf sdk.zip -C C:\oracle\instantclient
+          curl -L https://download.oracle.com/otn_software/nt/instantclient/1916000/instantclient-sdk-windows.x64-19.16.0.0.0dbru.zip -o sdk.zip
+          7z x sdk.zip -oinstantclient
 
+      # Setup Visual Studio Build Tools (for MSVC compiler)
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
+      # Configure environment variables
+      - name: Configure build environment
+        run: |
+          echo "INSTANTCLIENT_DIR=${{ github.workspace }}\\instantclient\\instantclient_19_16" >> $env:GITHUB_ENV
+          echo "PATH=${{ github.workspace }}\\instantclient\\instantclient_19_16;$env:PATH" >> $env:GITHUB_ENV
+
+      # Build oracle_fdw
       - name: Build oracle_fdw
         run: |
-          msbuild msvc/oracle_fdw.sln `
-            /p:Configuration=Release `
-            /p:Platform=x64 `
-            /p:PGSQL="C:\Program Files\PostgreSQL\13" `
-            /p:ORACLE_HOME="C:\oracle\instantclient"
+          msbuild src\\oracle_fdw.vcxproj /p:Configuration=Release /p:Platform=x64
 
-      - name: Upload DLL
+      # Upload DLL artifact
+      - name: Upload oracle_fdw.dll
         uses: actions/upload-artifact@v4
         with:
-          name: oracle_fdw-dll
-          path: msvc/x64/Release/oracle_fdw.dll
+          name: oracle_fdw_dll
+          path: src\\x64\\Release\\oracle_fdw.dll
