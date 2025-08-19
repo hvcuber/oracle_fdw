@@ -1,4 +1,4 @@
-name: Build oracle_fdw for Windows latest
+name: Build oracle_fdw for Windows
 
 on:
   workflow_dispatch:
@@ -13,33 +13,28 @@ jobs:
         with:
           repository: laurenz/oracle_fdw
 
-      - name: Download Oracle Instant Client
-        run: |
-          curl -L https://download.oracle.com/otn_software/nt/instantclient/1916000/instantclient-basic-windows.x64-19.16.0.0.0dbru.zip -o instantclient.zip
-          curl -L https://download.oracle.com/otn_software/nt/instantclient/1916000/instantclient-sdk-windows.x64-19.16.0.0.0dbru.zip -o instantclient-sdk.zip
-          mkdir C:\oracle
-          tar -xf instantclient.zip -C C:\oracle
-          tar -xf instantclient-sdk.zip -C C:\oracle
-          ren "C:\oracle\instantclient_19_16" instantclient
-
-      - name: Set environment
-        run: |
-          echo "PATH=C:\Program Files\PostgreSQL\13\bin;C:\oracle\instantclient;%PATH%" >> $env:GITHUB_ENV
-          echo "INCLUDE=C:\oracle\instantclient\sdk\include" >> $env:GITHUB_ENV
-          echo "LIB=C:\oracle\instantclient\sdk\lib\msvc" >> $env:GITHUB_ENV
-
       - name: Install PostgreSQL 13
         run: |
           choco install postgresql13 --yes --force
-          echo "PATH=C:\Program Files\PostgreSQL\13\bin;%PATH%" >> $env:GITHUB_ENV
+          echo "C:\Program Files\PostgreSQL\13\bin" >> $env:GITHUB_PATH
 
-      - name: Build oracle_fdw
+      - name: Download Oracle Instant Client (Basic + SDK)
+        run: |
+          curl -L https://download.oracle.com/otn_software/nt/instantclient/1916000/instantclient-basic-windows.x64-19.16.0.0.0dbru.zip -o basic.zip
+          curl -L https://download.oracle.com/otn_software/nt/instantclient/1916000/instantclient-sdk-windows.x64-19.16.0.0.0dbru.zip -o sdk.zip
+          mkdir C:\oracle
+          tar -xf basic.zip -C C:\oracle
+          tar -xf sdk.zip -C C:\oracle
+          ren "C:\oracle\instantclient_19_16" instantclient
+          echo "C:\oracle\instantclient" >> $env:GITHUB_PATH
+
+      - name: Build oracle_fdw with nmake
         run: |
           cd oracle_fdw
           nmake /F Makefile.win
 
-      - name: Upload DLL artifact
-        uses: actions/upload-artifact@v3
+      - name: Upload oracle_fdw.dll
+        uses: actions/upload-artifact@v4
         with:
           name: oracle_fdw-dll
           path: oracle_fdw\Release\oracle_fdw.dll
